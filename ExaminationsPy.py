@@ -29,10 +29,39 @@ class ExamMaterial():
         post_data = {"MaterialArchive__noTable__sbv__ViewType": "exampapers", "MaterialArchive__noTable__sbv__YearSelect": 2019, "MaterialArchive__noTable__sbv__ExaminationSelect": "lc", "MaterialArchive__noTable__sbv__SubjectSelect": 32}
         post_data.update(examinations_environment.POST_DATA)
         r = requests.post("https://www.examinations.ie/exammaterialarchive/index.php", data=post_data)
-        # pdb.set_trace()
         url = "https://examinations.ie/exammaterialarchive/" + self.__parsePage(r.content)
         return url
 
-##USAGE:
-## paper = ExamMaterial('exampapers', 2019, 'lc', 'Accounting', 'Higher Level')
-## paper.url -> https://examinations.ie/exammaterialarchive/?fp=41.112.91.108.41.113.113.113.41.91.108.93.98.99.112.95.39.104.95.113.41.95.114.91.103.106.91.106.95.108.109.41.44.42.43.51.41.70.61.42.45.44.59.70.74.42.42.42.63.80.40.106.94.96.104
+class Examinations():
+
+    def __init__(self, exam = "", level = ""):
+        self.exam = exam
+        self.level = level
+
+    def papers(self):
+        return True
+
+    def markingschemes(self,):
+        return True
+
+    def __parseSubjects(self, content):
+        nextLines = False
+        subjects = []
+        for line in iter(content.splitlines()):
+            if "[Select Subject]" in str(line):
+                options = str(line).split(">")
+                for option in options:
+                    if "</" in option and option.split("</")[0] != "":
+                        subjects.append(option.split("</")[0])
+                break
+        return subjects[2:]
+
+    def subjects(self, exam = ""):
+        exam = self.exam if exam == "" else exam
+        if(exam == ""):
+            return False
+        post_data = {"MaterialArchive__noTable__sbv__ViewType": "exampapers", "MaterialArchive__noTable__sbv__YearSelect": 2019, "MaterialArchive__noTable__sbv__ExaminationSelect": exam}
+        post_data.update(examinations_environment.POST_DATA)
+        r = requests.post("https://www.examinations.ie/exammaterialarchive/index.php", data=post_data)
+        subjects = self.__parseSubjects(r.content)
+        return subjects
