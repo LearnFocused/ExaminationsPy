@@ -38,30 +38,39 @@ class Examinations():
         self.exam = exam
         self.level = level
 
-    def papers(self):
-        return True
+    def query(self, type = "", year = "", exam = "", subject = ""):
+        post_data = {"MaterialArchive__noTable__sbv__ViewType": type, "MaterialArchive__noTable__sbv__YearSelect": year, "MaterialArchive__noTable__sbv__ExaminationSelect": exam}
+        post_data.update(examinations_environment.POST_DATA)
+        r = requests.post("https://www.examinations.ie/exammaterialarchive/index.php", data=post_data)
+        return r
 
-    def markingschemes(self,):
-        return True
-
-    def __parseSubjects(self, content):
+    def __parseOptions(self, content, delimeter):
         nextLines = False
-        subjects = []
+        options = []
         for line in iter(content.splitlines()):
-            if "[Select Subject]" in str(line):
-                options = str(line).split(">")
-                for option in options:
-                    if "</" in option and option.split("</")[0] != "":
-                        subjects.append(option.split("</")[0])
+            if delimeter in str(line):
+                elements = str(line).split(">")
+                for element in elements:
+                    if "</" in element and element.split("</")[0] != "":
+                        options.append(element.split("</")[0])
                 break
-        return subjects[2:]
+        return options
+
+    def years(self, exam = ""):
+        exam = self.exam if exam == "" else exam
+        if(exam == ""):
+            return False
+        r = self.query("exampapers")
+        years = self.__parseOptions(r.content, "[Select Year]")
+        return years[2:]
 
     def subjects(self, exam = ""):
         exam = self.exam if exam == "" else exam
         if(exam == ""):
             return False
-        post_data = {"MaterialArchive__noTable__sbv__ViewType": "exampapers", "MaterialArchive__noTable__sbv__YearSelect": 2019, "MaterialArchive__noTable__sbv__ExaminationSelect": exam}
-        post_data.update(examinations_environment.POST_DATA)
-        r = requests.post("https://www.examinations.ie/exammaterialarchive/index.php", data=post_data)
-        subjects = self.__parseSubjects(r.content)
-        return subjects
+        r = self.query("exampapers", 2019, exam)
+        subjects = self.__parseOptions(r.content, "[Select Subject]")
+        return subjects[2:]
+
+ex = Examinations()
+print(ex.subjects("lc"))
