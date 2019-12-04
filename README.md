@@ -33,5 +33,5 @@ print(paper.url())
 Get all the Accounting Higher Level Papers
 
 ```
-papers = ex.papers(subject = "Accounting", level = "Higher Level")
+papers = Examinations.papers(subject = "Accounting", level = "Higher Level")
 ```
