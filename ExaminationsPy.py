@@ -24,9 +24,10 @@ class ExamMaterial():
                 url = str(line).split("href=")[1]
                 url = url.split(" ")[0]
                 return url
+        return False
 
     def url(self):
-        post_data = {"MaterialArchive__noTable__sbv__ViewType": "exampapers", "MaterialArchive__noTable__sbv__YearSelect": 2019, "MaterialArchive__noTable__sbv__ExaminationSelect": "lc", "MaterialArchive__noTable__sbv__SubjectSelect": 32}
+        post_data = {"MaterialArchive__noTable__sbv__ViewType": self.type, "MaterialArchive__noTable__sbv__YearSelect": self.year, "MaterialArchive__noTable__sbv__ExaminationSelect": self.exam, "MaterialArchive__noTable__sbv__SubjectSelect": self.subject}
         post_data.update(examinations_environment.POST_DATA)
         r = requests.post("https://www.examinations.ie/exammaterialarchive/index.php", data=post_data)
         url = "https://examinations.ie/exammaterialarchive/" + self.__parsePage(r.content)
@@ -34,9 +35,8 @@ class ExamMaterial():
 
 class Examinations():
 
-    def __init__(self, exam = "", level = ""):
+    def __init__(self, exam = ""):
         self.exam = exam
-        self.level = level
 
     def query(self, type = "", year = "", exam = "", subject = ""):
         post_data = {"MaterialArchive__noTable__sbv__ViewType": type, "MaterialArchive__noTable__sbv__YearSelect": year, "MaterialArchive__noTable__sbv__ExaminationSelect": exam}
@@ -72,5 +72,11 @@ class Examinations():
         subjects = self.__parseOptions(r.content, "[Select Subject]")
         return subjects[2:]
 
-ex = Examinations()
-print(ex.subjects("lc"))
+    def papers(self, subject, level, exam = ""):
+        exam = self.exam if exam == "" else exam
+        if(exam == ""):
+            return False
+        papers = []
+        for year in self.years(exam):
+            papers.append(ExamMaterial("exampapers", int(year), exam, subject, level))
+        return papers
