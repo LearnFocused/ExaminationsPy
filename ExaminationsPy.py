@@ -9,6 +9,8 @@ class ExamMaterial():
         self.exam = exam
         self.subject = self.__subjectId(subject)
         self.level = level
+        self.url = ""
+        self.title = ""
 
     def __subjectId(self, subjectName):
         subjects = examinations_environment.EXAMINATION_SUBJECTS[self.exam]
@@ -19,19 +21,23 @@ class ExamMaterial():
         for line in iter(content.splitlines()):
             if self.level in str(line):
                 if "IV" not in str(line):
+                    title = str(line).split(">")[1]
+                    title = title.split("<")[0]
                     next = True
             if next and "href=?fp" in str(line):
                 url = str(line).split("href=")[1]
                 url = url.split(" ")[0]
-                return url
+                return title, url
         return False
 
-    def url(self):
+    def fetch(self):
         post_data = {"MaterialArchive__noTable__sbv__ViewType": self.type, "MaterialArchive__noTable__sbv__YearSelect": self.year, "MaterialArchive__noTable__sbv__ExaminationSelect": self.exam, "MaterialArchive__noTable__sbv__SubjectSelect": self.subject}
         post_data.update(examinations_environment.POST_DATA)
         r = requests.post("https://www.examinations.ie/exammaterialarchive/index.php", data=post_data)
-        url = "https://examinations.ie/exammaterialarchive/" + self.__parsePage(r.content)
-        return url
+        title, url = self.__parsePage(r.content)
+        self.url = "https://examinations.ie/exammaterialarchive/" + url
+        self.title = title
+        return True
 
 class Examinations():
 
@@ -52,7 +58,9 @@ class Examinations():
                 elements = str(line).split(">")
                 for element in elements:
                     if "</" in element and element.split("</")[0] != "":
-                        options.append(element.split("</")[0])
+                        toAppend = element.split("</")[0]
+                        toAppend = toAppend.replace("\\x96 ", "") #Special characters present in some subjects
+                        options.append(toAppend)
                 break
         return options
 

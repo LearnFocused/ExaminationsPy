@@ -27,7 +27,8 @@ Get the url for the 2019 Higher Level Accounting Paper
 
 ```
 paper = ex.ExamMaterial('exampapers', 2019, 'lc', 'Accounting', 'Higher Level')
-print(paper.url())
+paper.fetch()
+print(paper.url)
 ```
 
 Get all the Accounting Higher Level Papers
