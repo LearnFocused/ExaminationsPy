@@ -3,49 +3,29 @@ import examinations_environment
 
 class ExamMaterial():
 
-    def __init__(self, type, year, exam, subject, level):
+    def __init__(self, type, exam, year, subject, level, title, url):
         self.type = type
         self.year = year
         self.exam = exam
         self.subject = self.__subjectId(subject)
         self.level = level
-        self.url = ""
-        self.title = ""
+        self.url = url
+        self.title = title
 
     def __subjectId(self, subjectName):
         subjects = examinations_environment.EXAMINATION_SUBJECTS[self.exam]
-        return subjects[subjectName]
-
-    def __parsePage(self, content):
-        next = False
-        for line in iter(content.splitlines()):
-            if self.level in str(line):
-                if "IV" not in str(line):
-                    title = str(line).split(">")[1]
-                    title = title.split("<")[0]
-                    next = True
-            if next and "href=?fp" in str(line):
-                url = str(line).split("href=")[1]
-                url = url.split(" ")[0]
-                return title, url
-        return False
-
-    def fetch(self):
-        post_data = {"MaterialArchive__noTable__sbv__ViewType": self.type, "MaterialArchive__noTable__sbv__YearSelect": self.year, "MaterialArchive__noTable__sbv__ExaminationSelect": self.exam, "MaterialArchive__noTable__sbv__SubjectSelect": self.subject}
-        post_data.update(examinations_environment.POST_DATA)
-        r = requests.post("https://www.examinations.ie/exammaterialarchive/index.php", data=post_data)
-        title, url = self.__parsePage(r.content)
-        self.url = "https://examinations.ie/exammaterialarchive/" + url
-        self.title = title
-        return True
+        try:
+            return subjects[subjectName]
+        except KeyError:
+            return subjectName
 
 class Examinations():
 
-    def __init__(self, exam = ""):
+    def __init__(self, exam):
         self.exam = exam
 
-    def query(self, type = "", year = "", exam = "", subject = ""):
-        post_data = {"MaterialArchive__noTable__sbv__ViewType": type, "MaterialArchive__noTable__sbv__YearSelect": year, "MaterialArchive__noTable__sbv__ExaminationSelect": exam}
+    def query(self, type = "", exam = "", subject = "", year = ""):
+        post_data = {"MaterialArchive__noTable__sbv__ViewType": type, "MaterialArchive__noTable__sbv__YearSelect": year, "MaterialArchive__noTable__sbv__ExaminationSelect": exam, "MaterialArchive__noTable__sbv__SubjectSelect": subject}
         post_data.update(examinations_environment.POST_DATA)
         r = requests.post("https://www.examinations.ie/exammaterialarchive/index.php", data=post_data)
         return r
@@ -64,27 +44,51 @@ class Examinations():
                 break
         return options
 
-    def years(self, exam = ""):
-        exam = self.exam if exam == "" else exam
-        if(exam == ""):
-            return False
+    def __extractMaterials(self, content):
+        titles = []
+        urls = []
+        next = False
+        for line in iter(content.splitlines()):
+            line = str(line)
+            if "class='materialbody'" in line and "</TD>" in line:
+                title = line.split(">")[1].split("<")[0]
+                titles.append(title)
+                next = True
+            if next and "<!--" not in line and "<a href=" in line:
+                url = line.split('href=')[1].split(' ')[0]
+                urls.append(url)
+                next = False
+        return titles, urls
+
+    def subjectId(self, subjectName):
+        subjects = examinations_environment.EXAMINATION_SUBJECTS[self.exam]
+        return subjects[subjectName]
+
+    def years(self):
         r = self.query("exampapers")
         years = self.__parseOptions(r.content, "[Select Year]")
         return years[2:]
 
-    def subjects(self, exam = ""):
-        exam = self.exam if exam == "" else exam
-        if(exam == ""):
-            return False
-        r = self.query("exampapers", 2019, exam)
+    def subjects(self):
+        r = self.query("exampapers", exam, year = 2019)
         subjects = self.__parseOptions(r.content, "[Select Subject]")
         return subjects[2:]
 
-    def papers(self, subject, level, exam = ""):
-        exam = self.exam if exam == "" else exam
-        if(exam == ""):
-            return False
-        papers = []
-        for year in self.years(exam):
-            papers.append(ExamMaterial("exampapers", int(year), exam, subject, level))
-        return papers
+    def __materials(self, type, subject, year = None, level = None):
+        materials = []
+        years = self.years() if year == None else [year]
+        subject = self.subjectId(subject)
+        for year in years:
+            r = self.query(type, self.exam, subject, year)
+            paperTitles, paperUrls = self.__extractMaterials(r.content)
+            for i, title in enumerate(paperTitles):
+                if level == None or level in title:
+                    material = ExamMaterial(type, self.exam, year, subject, level, title, "https://www.examinations.ie/exammaterialarchive/" + paperUrls[i])
+                    materials.append(material)
+        return materials
+
+    def papers(self, subject, year = None, level = None):
+        return self.__materials("exampapers", subject, year, level)
+
+    def schemes(self, subject, year = None, level = None):
+        return self.__materials("markingschemes", subject, year, level)

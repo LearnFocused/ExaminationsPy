@@ -26,9 +26,15 @@ years = Examinations.years("lc")
 Get the url for the 2019 Higher Level Accounting Paper
 
 ```
-paper = ex.ExamMaterial('exampapers', 2019, 'lc', 'Accounting', 'Higher Level')
-paper.fetch()
-print(paper.url)
+papers = Examinations.papers("Accounting", year = 2019, level = "Higher Level")
+print(papers[0].url)
+```
+
+Get the url for the 2019 Higher Level Accounting Marking Scheme
+
+```
+schemes = Examinations.schemes("Accounting", year = 2019, level = "Higher Level")
+print(schemes[0].url)
 ```
 
 Get all the Accounting Higher Level Papers
