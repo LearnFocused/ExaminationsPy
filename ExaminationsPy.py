@@ -30,17 +30,21 @@ class Examinations():
         r = requests.post("https://www.examinations.ie/exammaterialarchive/index.php", data=post_data)
         return r
 
-    def __parseOptions(self, content, delimeter):
+    def __parseOptions(self, content, delimeter, value = False):
         nextLines = False
         options = []
         for line in iter(content.splitlines()):
             if delimeter in str(line):
-                elements = str(line).split(">")
+                elements = str(line).split("<")
                 for element in elements:
-                    if "</" in element and element.split("</")[0] != "":
-                        toAppend = element.split("</")[0]
+                    if "option" in element and element.split(">")[1] != "":
+                        toAppend = element.split(">")[1]
                         toAppend = toAppend.replace("\\x96 ", "") #Special characters present in some subjects
-                        options.append(toAppend)
+                        if(value):
+                            id = element.split('="')[1].split('"')[0]
+                            options.append([toAppend, id])
+                        else:
+                            options.append(toAppend)
                 break
         return options
 
@@ -62,7 +66,10 @@ class Examinations():
 
     def subjectId(self, subjectName):
         subjects = examinations_environment.EXAMINATION_SUBJECTS[self.exam]
-        return subjects[subjectName]
+        try:
+            return subjects[subjectName]
+        except KeyError:
+            return False
 
     def years(self):
         r = self.query("exampapers")
@@ -70,8 +77,8 @@ class Examinations():
         return years[2:]
 
     def subjects(self):
-        r = self.query("exampapers", exam, year = 2019)
-        subjects = self.__parseOptions(r.content, "[Select Subject]")
+        r = self.query("exampapers", self.exam, year = 2019)
+        subjects = self.__parseOptions(r.content, "[Select Subject]", True)
         return subjects[2:]
 
     def __materials(self, type, subject, year = None, level = None):
@@ -83,7 +90,8 @@ class Examinations():
             paperTitles, paperUrls = self.__extractMaterials(r.content)
             for i, title in enumerate(paperTitles):
                 if level == None or level in title:
-                    material = ExamMaterial(type, self.exam, year, subject, level, title, "https://www.examinations.ie/exammaterialarchive/" + paperUrls[i])
+                    url = "https://www.examinations.ie/exammaterialarchive/" + paperUrls[i] if "https" not in paperUrls[i] else paperUrls[i]
+                    material = ExamMaterial(type, self.exam, year, subject, level, title, url)
                     materials.append(material)
         return materials
 
